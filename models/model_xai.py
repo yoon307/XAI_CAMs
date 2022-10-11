@@ -52,7 +52,7 @@ class model_WSSS():
         
         # Define networks
         self.net_er = resnet38d.Net_er()
-        self.net_er.load_state_dict(resnet38d.convert_mxnet_to_torch('/content/drive/MyDrive/xai_files/resnet_38d.params'), strict=False)
+        # self.net_er.load_state_dict(resnet38d.convert_mxnet_to_torch('/content/drive/MyDrive/xai_files/resnet_38d.params'), strict=False)
         
     # Save networks
     def save_model(self, epo, ckpt_path, best=None):
@@ -108,9 +108,7 @@ class model_WSSS():
 
         if self.phase == 'eval':
             self.img = pack[1]
-            # To handle MSF dataset
-            for i in range(8):
-                self.img[i] = self.img[i].to(self.dev)
+            
             self.label = pack[2].to(self.dev)
     
         self.split_label()
@@ -163,12 +161,9 @@ class model_WSSS():
                 else:
                     self.wrong_count[idx] += 1
 
-    def infer_init(self):
-        n_gpus = torch.cuda.device_count()
-        self.net_er_replicas = torch.nn.parallel.replicate(self.net_er.module,list(range(n_gpus)))
-
+    
     # (Multi-Thread) Infer MSF-CAM and save image/cam_dict/crf_dict 
-    def infer_msf(self, epo, val_path, dict_path, crf_path, vis=False, dict=False, crf=False):
+    def infer(self, epo, val_path, dict_path, crf_path, vis=False, dict=False, crf=False):
 
         if self.phase!='eval':
             self.set_phase('eval')
@@ -177,26 +172,30 @@ class model_WSSS():
         gt = self.label_all[0].cpu().detach().numpy()
         self.gt_cls = np.nonzero(gt)[0]
 
-        _, _, H, W = self.img[2].shape
-        n_gpus = torch.cuda.device_count()
+        _, _, H, W = self.img.shape
+        # n_gpus = torch.cuda.device_count()
 
-        def _work(i, img):
-            with torch.no_grad():
-                with torch.cuda.device(i % n_gpus):
-                    cam,_ = self.net_er_replicas[i % n_gpus](img.cuda())
-                    cam = F.upsample(cam, (H,W), mode='bilinear', align_corners=False)[0]
-                    cam = F.relu(cam)
-                    cam = cam.cpu().numpy() * self.label.clone().cpu().view(20, 1, 1).numpy()
+        # def _work(i, img):
+        #     with torch.no_grad():
+        #         with torch.cuda.device(i % n_gpus):
+        #             cam,_ = self.net_er_replicas[i % n_gpus](img.cuda())
+        #             cam = F.upsample(cam, (H,W), mode='bilinear', align_corners=False)[0]
+        #             cam = F.relu(cam)
+        #             cam = cam.cpu().numpy() * self.label.clone().cpu().view(20, 1, 1).numpy()
                     
-                    if i % 2 == 1:
-                        cam = np.flip(cam, axis=-1)
+        #             if i % 2 == 1:
+        #                 cam = np.flip(cam, axis=-1)
 
-                    return cam
+        #             return cam
 
-        thread_pool = pyutils.BatchThreader(_work, list(enumerate(self.img)), batch_size=8, prefetch_size=0, processes=8)
+        # thread_pool = pyutils.BatchThreader(_work, list(enumerate(self.img)), batch_size=8, prefetch_size=0, processes=8)
 
-        cam_list = thread_pool.pop_results()
-        cam = np.sum(cam_list, axis=0)
+        # cam_list = thread_pool.pop_results()
+        cam,_ = self.net_er(self.img)
+        cam = F.upsample(cam, (H,W), mode='bilinear', align_corners=False)[0]
+        cam = F.relu(cam)
+        cam = cam.detach().cpu().numpy() * self.label.clone().cpu().view(20, 1, 1).numpy()
+        # cam = np.sum(cam_list, axis=0)
         cam_max = np.max(cam, (1, 2), keepdims=True)
         norm_cam = cam / (cam_max + 1e-5)
 
@@ -206,7 +205,10 @@ class model_WSSS():
                 self.cam_dict[i] = norm_cam[i]
 
         if vis:
-            img_np = denorm(self.img[2][0]).cpu().detach().data.permute(1, 2, 0).numpy()
+            img_np = denorm(self.img[0]).cpu().detach().data.permute(1, 2, 0).numpy()
+
+            # print(norm_cam.shape) 
+            # print(img_np.shape)
             for c in self.gt_cls:
                 save_img(osp.join(val_path, epo_str + '_' + self.name + '_cam_' + self.categories[c] + '.png'), img_np, norm_cam[c])
 
