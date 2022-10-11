@@ -63,7 +63,7 @@ def make_path(args):
 
     return exp_path, ckpt_path, train_path, val_path, infer_path, dict_path, crf_path, log_path
 
-def build_dataset(phase='train', path="voc12/train_aug.txt", root='./data/VOC2012', resize=[384,512], crop=448):
+def build_dataset(phase='train', path="voc12/train_aug.txt", root='/content/drive/MyDrive/xai_files/VOC2012', resize=[384,512], crop=448):
 
     tf_list = []
 
