@@ -52,7 +52,7 @@ class model_WSSS():
         
         # Define networks
         self.net_er = resnet38d.Net_er()
-        # self.net_er.load_state_dict(resnet38d.convert_mxnet_to_torch('/content/drive/MyDrive/xai_files/resnet_38d.params'), strict=False)
+        self.net_er.load_state_dict(resnet38d.convert_mxnet_to_torch('/content/drive/MyDrive/xai_files/resnet_38d.params'), strict=False)
         
     # Save networks
     def save_model(self, epo, ckpt_path, best=None):
