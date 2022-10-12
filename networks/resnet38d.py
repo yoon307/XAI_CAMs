@@ -314,8 +314,8 @@ class Net_er(nn.Module):
         self.b5_1 = ResBlock(1024, 512, 1024, dilation=2)
         self.b5_2 = ResBlock(1024, 512, 1024, dilation=2)
 
-        self.b6 = ResBlock_bot(1024, 2048, stride=1, dilation=4, dropout=0.3)
-        self.b7 = ResBlock_bot(2048, 4096, dilation=4, dropout=0.5)
+        self.b6 = ResBlock_bot(1024, 2048, stride=1, dilation=4, dropout=0.1)
+        self.b7 = ResBlock_bot(2048, 4096, dilation=4, dropout=0.1)
         
         self.bn7 = nn.BatchNorm2d(4096)
 
